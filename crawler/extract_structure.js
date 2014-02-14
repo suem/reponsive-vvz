@@ -1,12 +1,12 @@
+//imports------------------------------------------------------------------------
 var request = require('request');
 var cheerio = require('cheerio');
 var util = require('util');
-var async = require('async');
+var _ = require('underscore');
+//-----------------------------------------------------------------------------------
 
-var vvz_search_start_page = 'http://vvz.ethz.ch/Vorlesungsverzeichnis/sucheLehrangebotPre.do?lang=en';
 var vvz_search_query_page = 'http://vvz.ethz.ch/Vorlesungsverzeichnis/sucheLehrangebot.do?lang=en&semkez=%s&studiengangTyp=%s&deptId=%s&refresh=on';
-
-var programms = {};
+var data = {levels: {}, departments : {}, programs : {} , sections : {}, lectures : {}};
 
 exports.fetch_structure = function (semester_id, callback) {
     get_structure(semester_id, callback);
@@ -19,30 +19,37 @@ function get_structure(semester_id, callback) {
     callback_counter = 0;
     structure_ready = callback;
     var url = util.format(vvz_search_query_page, semester_id, '', '')
-    fetch_values(url, 'studiengangTyp', 'level_name', 'level_id', function (error, values) {
+    fetch_values(url, 'studiengangTyp', 'name', 'id', function (error, values) {
         if (!error) {
             values.forEach(function (level) {
-                var level_id = level.level_id;
-                var level_name = level.level_name;
-                url = util.format(vvz_search_query_page, semester_id, level_id, '');
-                fetch_values(url, 'deptId', 'department_name', 'department_id', function (error, values) {
+                //create departments list for level object
+                if(!level.departments) level.departments = [];
+               //store level
+                data.levels[level.id] = level;
+                //create url to fetch all departments of this level
+                url = util.format(vvz_search_query_page, semester_id, level.id, '');
+                fetch_values(url, 'deptId', 'name', 'id', function (error, values) {
                     if (!error) {
                         values.forEach(function (department) {
-                            var department_id = department.department_id;
-                            var department_name = department.department_name;
-                            url = util.format(vvz_search_query_page, semester_id, level_id, department_id);
-                            fetch_values(url, 'studiengangAbschnittId', 'programm_name', 'programm_id', function (error, values) {
+                            //create levels list for department
+                            if(!department.levels) department.levels = [];
+                            department.programs = [];
+                            //write level/department relationship
+                            department.levels.push(level.id);
+                            level.departments.push(department.id);
+                            //store department
+                            if(!data.departments[department.id]) data.departments[department.id] = department;
+                            //create url to fetch all programms of this department
+                            url = util.format(vvz_search_query_page, semester_id, level.id, department.id);
+                            fetch_values(url, 'studiengangAbschnittId', 'name', 'id', function (error, values) {
                                 if (!error) {
-                                    values.forEach(function (programm) {
-                                        var programm_name = programm.programm_name;
-                                        var programm_id = programm.programm_id;
-                                        var p = {
-                                            semester_id: semester_id,
-                                            level_id: level_id, level_name: level_name,
-                                            department_id: department_id, department_name: department_name,
-                                            programm_id: programm_id, programm_name: programm_name
-                                        };
-                                        programms[programm_id] = p;
+                                    values.forEach(function (program) {
+                                        //write department/program relationship
+                                        department.programs.push(program.id);
+                                        program.department = department.id;
+                                        program.sections = [];
+                                        //store program
+                                        data.programs[program.id] = program;
                                     })
                                 }
                             });
@@ -75,7 +82,7 @@ function fetch_values(url, select_id, object_name_key, id_name_key, callback) {
         callback(error, values);
         callback_counter--;
         if (callback_counter <= 0) {
-            structure_ready(programms);
+            structure_ready(data);
         }
     });
 }
