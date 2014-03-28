@@ -71,7 +71,7 @@ public class StructureExtractor {
                 Lecture lecture = data.getOrStore(new Lecture(id, ""));
             }
         }
-        System.out.printf("Fetched " + data.lectures.size() + " lectures");
+        log.info("Fetched " + data.lectures.size() + " lectures");
     }
 
     public void populateAllLectures() {
@@ -82,6 +82,7 @@ public class StructureExtractor {
                 log.warning("Exception while populating lecture " + lecture.id + ", cause: " + e.getCause());
             }
         }
+        log.info("pupulated "+data.lectures.size()+" lectures");
     }
 
     public void populateLecture(Lecture lecture) throws IOException {
@@ -90,7 +91,7 @@ public class StructureExtractor {
         Document doc = getDocument(getLectureUrl(data.semesterId, lecture.id));
         if (!setTitleAndNumber(lecture, doc)) log.warning("Failed to parse title and number of lecture: " + lecture.id);
         if (!setSections(lecture, doc)) log.warning("Failed to parse sections of lecture: " + lecture.id);
-        log.info("Done populating lecture: " + lecture.name);
+//        log.info("Done populating lecture: " + lecture.name);
     }
 
     private boolean setSections(Lecture lecture, Document doc) {
@@ -128,7 +129,7 @@ public class StructureExtractor {
         if (elements.size() == 1) {
             Element titleElement = elements.first();
             String text = titleElement.text();
-            Pattern p = Pattern.compile("(.*L)(.*)"); //TODO fix this regex
+            Pattern p = Pattern.compile("(\\w{3}-\\w{4}-\\w{2}L)(.*)");
             Matcher m = p.matcher(text);
             if (m.matches()) {
                 lecture.number = m.group(1).trim();

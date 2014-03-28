@@ -69,6 +69,7 @@ public class JsonWrapper {
         JSONObject obj = new JSONObject();
         obj.put("id", lecture.id);
         obj.put("name", lecture.name);
+        obj.put("number", lecture.number);
         JSONArray arr = new JSONArray();
         lecture.sections.forEach((l) -> arr.add(l.id));
         obj.put("sections", arr);
